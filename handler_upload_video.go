@@ -82,20 +82,18 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var key string
+	key := getAssetPath(mediaType)
 	aspectRatio, err := getVideoAspectRatio(tempAsset.Name())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't get video aspect ratio", nil)
 		return
 	}
-	fmt.Println(aspectRatio)
-	if aspectRatio == "16:9" {
+	switch aspectRatio {
+	case "16:9":
 		key = fmt.Sprintf("landscape/%s", getAssetPath(mediaType))
-	}
-	if aspectRatio == "9:16" {
+	case "9:16":
 		key = fmt.Sprintf("portrait/%s", getAssetPath(mediaType))
-	}
-	if aspectRatio == "other" {
+	default:
 		key = fmt.Sprintf("other/%s", getAssetPath(mediaType))
 	}
 
