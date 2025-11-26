@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"math"
+	"fmt"
 	"os/exec"
 )
 
@@ -16,42 +16,36 @@ type FFProbeResp struct {
 }
 
 func getVideoAspectRatio(filePath string) (string, error) {
-	cmd := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_streams", filePath)
-	output := &bytes.Buffer{}
-	cmd.Stdout = output
+	cmd := exec.Command(
+		"ffprobe",
+		"-v", "error",
+		"-print_format", "json",
+		"-show_streams",
+		filePath,
+	)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
 	if err := cmd.Run(); err != nil {
-		return "", err
+		return "", fmt.Errorf("error while running ffprobe: %v", err)
 	}
 
 	var ffProbeResp FFProbeResp
-	if err := json.Unmarshal(output.Bytes(), &ffProbeResp); err != nil {
-		return "", err
+	if err := json.Unmarshal(stdout.Bytes(), &ffProbeResp); err != nil {
+		return "", fmt.Errorf("couldn't parse ffprobe output data: %v", err)
 	}
+
 	if len(ffProbeResp.Streams) == 0 {
-		return "", errors.New("0 streams found when running ffprobe")
+		return "", errors.New("no video streams found")
 	}
 
 	width := ffProbeResp.Streams[0].Width
 	height := ffProbeResp.Streams[0].Height
 
-	if width == 0 || height == 0 {
-		return "other", nil
-	}
-	ratio := float64(width) / float64(height)
-
-	const (
-		landscape = 16.0 / 9.0
-		portrait  = 9.0 / 16.0
-		tolerance = 0.01
-	)
-
-	if math.Abs(ratio-landscape) < tolerance {
+	if width == 16*height/9 {
 		return "16:9", nil
-	}
-
-	if math.Abs(ratio-portrait) < tolerance {
+	} else if height == 16*width/9 {
 		return "9:16", nil
 	}
-
 	return "other", nil
 }
